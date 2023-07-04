@@ -1,7 +1,7 @@
-curl_cffi==0.5.5
-fake_useragent==1.1.3
-python-dotenv==1.0.0
-Telethon==1.26.1
-wolframalpha==5.0
-chromadb==0.3.26
+curl_cffi
+fake_useragent
+python-dotenv
+Telethon
+wolframalpha
+chromadb
 aiohttp
