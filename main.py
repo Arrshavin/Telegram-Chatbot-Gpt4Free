@@ -41,48 +41,36 @@ PLUGIN_PROMPT = f"You will be given a list of plugins with description. Based on
 async def AiAgent(prompt, system_prompt=""):
     model = Model()
     messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": prompt}
-    ]
-    return await model.ChatCompletion(messages)
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ]
+    full_text = await model.ChatCompletion(messages)
+    return full_text
 
 @client.on(NewMessage(pattern='/start'))
 async def start(event):
-    response = 'Hey! Write something and I will answer you using the gpt-4 model or add me to a group and I will answer you when you mention me.'
-    await event.respond(response)
+    await event.respond('Hey! Write something and I will answer you using the gpt-4 model or add me to a group and I will answer you when you mention me.')
 
 @client.on(NewMessage(pattern='/help'))
 async def help(event):
-    message = 'Hey! Write something and I will answer you using the gpt-4 model or add me to a group and I will answer you when you mention me.\nCommands:\n\n'
-    commands = [
-        '/jailbreak - list all jailbreaks',
-        '/jailbreak [JAILBREAK NAME] - enable a jailbreak',
-        '/plugins toggle - enable/disable plugins',
-        '/plugins list - list all plugins',
-        '/newrole <Role Name> <Role Info> - add a new role',
-        '/roles - list all roles',
-        '/role <Role Name> enable a role',
-        '/role disable - disable roles',
-        '/memory - enable/disable memory',
-        '/addmemory - add something to the memory without receiving AI response.'
-    ]
-    message += '\n\n'.join(commands)
-    await event.respond(message)
+    await event.respond('Hey! Write something and I will answer you using the gpt-4 model or add me to a group and I will answer you when you mention me.\nCommands:\n\n/jailbreak - list all jailbreaks\n\n/jailbreak [JAILBREAK NAME] - enable a jailbreak\n\n/plugins toggle - enable/disable plugins\n\n/plugins list - list all plugins\n\n/newrole <Role Name> <Role Info> - add a new role\n\n/roles - list all roles\n\n/role <Role Name> enable a role\n\n/role disable - disable roles\n\n/memory - enable/disable memory\n\n/addmemory - add something to the memory without receiving AI response.')
 
 @client.on(NewMessage(pattern='/plugins list'))
 async def pls(event):
-    pls = list(plugins_dict.keys())
+    pls = []
+    for plugin in plugins_dict:
+        pls.append(plugin)
     await event.respond("Available plugins are:\n{}".format("\n".join(pls)))
 
 @client.on(NewMessage(pattern='/plugins toggle'))
 async def pls_toggle(event):
     global PLUGINS
     PLUGINS = not PLUGINS
-    if PLUGINS and (not wolframalpha_app_id or wolframalpha_app_id == "TEST-APP"):
+    if PLUGINS == True and not wolframalpha_app_id or PLUGINS == True and wolframalpha_app_id == "TEST-APP":
         await event.respond("You need to set a wolframalpha app id in the .env file to use plugins.")
         PLUGINS = False
         return
-    await event.respond("Plugins enabled" if PLUGINS else "Plugins disabled")
+    await event.respond("Plugins enabled" if PLUGINS == True else "Plugins disabled")
 
 @client.on(NewMessage(pattern='/jailbreak'))
 async def jailbreak(event):
@@ -93,35 +81,32 @@ async def jailbreak(event):
             DAN_JAILBREAK = True
             await event.respond('DAN Mode enabled')
         elif jailbreak == 'disable':
-            global DAN_JAILBREAK
             DAN_JAILBREAK = False
             await event.respond('DAN Mode disabled')
-        else:
-            raise IndexError
     except IndexError:
-        await event.respond('To enable a jailbreak you have to specify one. Available jailbreaks are:\n\nDAN\ndisable')
-
-import json
+        await event.respond('TO enable a jailbreak you have to specify one. Available jailbreaks are:\n\nDAN\ndisable')
 
 @client.on(NewMessage(pattern="/newrole"))
 async def newrole(event):
+    with open("roles.json", "r") as f:
+        roles = f.read()
+    roles = json.loads(roles)
     try:
-        role_name, role = event.text.split(" ", 2)[1:]
+        role_name = event.text.split(" ")[1]
+        role = event.text.split(" ", 2)[2]
     except IndexError:
         await event.respond("You need to specify a role name and a role.")
         return
-    with open("roles.json", "r+") as f:
-        roles = json.load(f)
-        roles[role_name] = role
-        f.seek(0)
+    roles[role_name] = role
+    with open("roles.json", "w") as f:
         f.write(json.dumps(roles))
-        f.truncate()
     await event.respond("Role added")
 
 @client.on(NewMessage(pattern="/roles"))
 async def roles(event):
     with open("roles.json", "r") as f:
-        roles = json.load(f)
+        roles = f.read()
+    roles = json.loads(roles)
     await event.respond("Available roles:\n{}".format("\n".join(roles.keys())))
 
 @client.on(NewMessage(pattern="/role"))
@@ -137,7 +122,8 @@ async def role(event):
         await event.respond("Role disabled")
         return
     with open("roles.json", "r") as f:
-        roles = json.load(f)
+        roles = f.read()
+    roles = json.loads(roles)
     try:
         ROLE = roles[loc_role]
         await event.respond("Role set")
@@ -148,15 +134,16 @@ async def role(event):
 async def memory_command(event):
     global MEMORY
     MEMORY = not MEMORY
-    response = "Memory enabled" if MEMORY else "Memory disabled"
-    await event.respond(response)
+    await event.respond("Memory enabled" if MEMORY == True else "Memory disabled")
 
 @client.on(NewMessage(pattern='/addmemory'))
 async def addmemory(event):
     global memory
     text = event.text.split(' ', 1)[1]
-    memory[text] = str(uuid4())
+    memory.insert(text, str(uuid4()))
     await event.respond("Memory added")
+
+
 
 @client.on(NewMessage())
 async def handler(e):
@@ -176,23 +163,33 @@ async def handler(e):
             return
         prompt = e.text.replace(f'@{my_username}', '')
     msg = await e.respond('Thinking...')
-    if DAN_JAILBREAK and PLUGINS:
+    system_prompt = ""
+    if DAN_JAILBREAK == True and PLUGINS == True:
         await msg.edit('You can\'t use both DAN and plugins at the same time.')
         return
-    if PLUGINS and MEMORY:
+    if PLUGINS == True and MEMORY == True:
         await msg.edit('You can\'t use both plugins and memory at the same time.')
         return
-    if DAN_JAILBREAK and ROLE != "":
+    if DAN_JAILBREAK == True and ROLE != "":
         await msg.edit('You can\'t use both DAN and roles at the same time.')
         return
-    if PLUGINS and ROLE != "":
+    if PLUGINS == True and ROLE != "":
         await msg.edit('You can\'t use both plugins and roles at the same time.')
         return
-    system_prompt = DAN_PROMPT if DAN_JAILBREAK else PLUGIN_PROMPT if PLUGINS else ROLE
-    if MEMORY:
+    if DAN_JAILBREAK == True:
+        system_prompt = DAN_PROMPT
+    if PLUGINS == True:
+        system_prompt = PLUGIN_PROMPT
+    if ROLE != "":
+        system_prompt = ROLE
+        PLUGINS = False
+    if MEMORY == True:
         res = memory.find(prompt)
-        if res and res[0]:
-            system_prompt += "To answer the next question these data may be relevant: " + res[0][0]
+        if len(res) > 0 or res[0] != []:
+            system_prompt = system_prompt + "To answer the next question these data may be relevant: "
+            for i in res:
+                if (len(i) > 0):
+                    system_prompt = system_prompt + i[0]
     if PLUGINS:
         result = await AiAgent(prompt, system_prompt)
         if "[WOLFRAMALPHA" in result:
@@ -204,7 +201,12 @@ async def handler(e):
             else:
                 result = next(res.results).text
             result = await AiAgent(plugins_second_question["wolframalpha"].replace("<input>", prompt).replace("<result>", result))
-        if MEMORY:
+            if MEMORY == True:
+                memory.insert(prompt, str(uuid4()))
+                memory.insert(result, str(uuid4()))
+            await msg.edit(result)
+            return
+        if MEMORY == True:
             memory.insert(prompt, str(uuid4()))
             memory.insert(result, str(uuid4()))
         await msg.edit(result)
