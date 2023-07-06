@@ -10,8 +10,7 @@ class Memory:
             self.collection = self.client.get_collection(name)
 
     def insert(self, data, uuid):
-        self.collection.add(documents=[data], ids=[uuid])
+        self.collection.insert_one({"_id": uuid, **data})
     
     def find(self, query):
-        q = self.collection.query(query_texts=[query], n_results=2)
-        return q['documents']
+        return self.collection.query(query_texts=[query], n_results=2)['documents']

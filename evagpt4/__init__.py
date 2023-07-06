@@ -19,25 +19,24 @@ class Model:
         line_text = line.decode("utf-8").strip()
         if line_text.startswith("data:"):
             data = line_text[len("data:"):]
-            try:
-                data_json = json.loads(data)
-                if "choices" in data_json:
-                    choices = data_json["choices"]
-                    for choice in choices:
-                        if "finish_reason" in choice and choice["finish_reason"] == "stop":
-                            break
-                        if "delta" in choice and "content" in choice["delta"]:
-                            content = choice["delta"]["content"]
-                            self.accumulated_content += content
-            except json.JSONDecodeError as e:
-                return
+        try:
+            data_json = json.loads(data)
+            choices = data_json.get("choices", [])
+            for choice in choices:
+                if choice.get("finish_reason") == "stop":
+                    break
+                delta = choice.get("delta", {})
+                content = delta.get("content")
+                if content:
+                    self.accumulated_content += content
+        except json.JSONDecodeError:
+            pass
 
     async def ChatCompletion(self, messages):
         self.payload["messages"] = messages
 
         async with aiohttp.ClientSession() as session:
             async with session.post(self.url, headers=self.headers, data=json.dumps(self.payload)) as response:
-                async for line in response.content:
-                    await self._process_line(line)
+                self.accumulated_content = await response.text()
 
         return self.accumulated_content
