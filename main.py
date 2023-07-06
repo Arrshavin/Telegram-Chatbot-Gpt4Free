@@ -8,11 +8,7 @@ import wolframalpha
 from memory import Memory
 from uuid import uuid4
 
-try:
-    load_dotenv()
-except Exception as e:
-    print(f"An error occurred when trying to load the .env file: {e}")
-    exit(1)
+load_dotenv()
 
 memory = Memory('BotMemories')
 
@@ -98,8 +94,6 @@ async def newrole(event):
     try:
         role_name = event.text.split(" ")[1]
         role = event.text.split(" ", 2)[2]
-        if not role_name.isalpha() or not role.isalpha():
-            raise ValueError("Role name and role must only contain letters.")
     except IndexError:
         await event.respond("You need to specify a role name and a role.")
         return
@@ -220,8 +214,5 @@ async def handler(e):
         result = await AiAgent(prompt, system_prompt)
         await msg.edit(result)
 
-try:
-    client.start(bot_token=bot_token)
-    client.run_until_disconnected()
-except Exception as e:
-    print(f"An error occurred: {e}")
+client.start(bot_token=bot_token)
+client.run_until_disconnected()
