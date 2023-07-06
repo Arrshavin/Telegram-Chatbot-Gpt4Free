@@ -13,7 +13,8 @@ class Model:
             "temperature": 0.6,
             "stream": True
         }
-        self.accumulated_content = []
+        self.accumulated_content = ""
+
     async def _process_line(self, line):
         line_text = line.decode("utf-8").strip()
         if line_text.startswith("data:"):
@@ -27,13 +28,16 @@ class Model:
                             break
                         if "delta" in choice and "content" in choice["delta"]:
                             content = choice["delta"]["content"]
-                            self.accumulated_content.append(content)
+                            self.accumulated_content += content
             except json.JSONDecodeError as e:
-                print(f"Error decoding JSON: {e}")
+                return
+
     async def ChatCompletion(self, messages):
         self.payload["messages"] = messages
+
         async with aiohttp.ClientSession() as session:
             async with session.post(self.url, headers=self.headers, data=json.dumps(self.payload)) as response:
                 async for line in response.content:
                     await self._process_line(line)
-        return "".join(self.accumulated_content)
+
+        return self.accumulated_content
